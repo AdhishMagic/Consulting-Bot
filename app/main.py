@@ -71,3 +71,53 @@ def chat_endpoint(request: ChatRequest):
 @app.get("/", tags=["General"])
 def root():
     return {"message": "Consulting Bot Backend is running"}
+
+@app.get("/health", tags=["General"])
+def health_check(db: Session = Depends(get_db)):
+    """
+    Checks the health of the application and its dependencies.
+    """
+    status = {
+        "status": "ok",
+        "database": "unknown",
+        "google_creds": "unknown",
+        "vonage_api": "unknown",
+        "gemini_api": "unknown"
+    }
+
+    # Check Database
+    try:
+        db.execute("SELECT 1")
+        status["database"] = "connected"
+    except Exception as e:
+        status["database"] = f"error: {str(e)}"
+        status["status"] = "degraded"
+
+    # Check Google Credentials
+    import os
+    if os.path.exists("client_secret_1046460036418-md36vuhp52suaulkoc71n0geq87q036q.apps.googleusercontent.com.json"): # Check for specific file or generic logic
+         status["google_creds"] = "present"
+    else:
+         # Fallback check for any client secret json
+         import glob
+         if glob.glob("client_secret*.json"):
+             status["google_creds"] = "present"
+         else:
+             status["google_creds"] = "missing"
+             status["status"] = "degraded"
+
+    # Check Vonage
+    if os.getenv("VONAGE_API_KEY") and os.getenv("VONAGE_API_SECRET"):
+        status["vonage_api"] = "configured"
+    else:
+        status["vonage_api"] = "missing"
+        status["status"] = "degraded"
+
+    # Check Gemini
+    if os.getenv("GEMINI_API_KEY"):
+        status["gemini_api"] = "configured"
+    else:
+        status["gemini_api"] = "missing"
+        status["status"] = "degraded"
+
+    return status

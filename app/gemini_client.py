@@ -79,10 +79,11 @@ model = genai.GenerativeModel(
     tools=tools_list
 )
 
-chat = model.start_chat(enable_automatic_function_calling=True)
-
 def chat_with_gemini(message: str):
     try:
+        # Start a fresh chat session for each request to ensure statelessness and avoid cross-talk.
+        # In a production app with history, you would load history here.
+        chat = model.start_chat(enable_automatic_function_calling=True)
         response = chat.send_message(message)
         return response.text
     except Exception as e:

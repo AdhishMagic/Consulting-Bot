@@ -9,7 +9,11 @@ load_dotenv()
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./consulting_bot.db")
 
 engine = create_engine(
-    DATABASE_URL, connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {}
+    DATABASE_URL, 
+    connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {},
+    pool_size=10,
+    max_overflow=20,
+    pool_recycle=1800
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
