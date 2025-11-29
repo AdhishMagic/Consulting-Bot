@@ -17,7 +17,14 @@ RAZORPAY_KEY_ID = os.getenv("RAZORPAY_KEY_ID")
 RAZORPAY_KEY_SECRET = os.getenv("RAZORPAY_KEY_SECRET")
 RAZORPAY_WEBHOOK_SECRET = os.getenv("RAZORPAY_WEBHOOK_SECRET")
 
-client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
+try:
+    if RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET:
+        client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
+    else:
+        client = None
+except Exception as e:
+    print(f"Razorpay Init Error: {e}")
+    client = None
 
 class OrderCreateRequest(BaseModel):
     amount: int # Amount in currency subunits (e.g., paise for INR)
@@ -32,6 +39,9 @@ class PaymentVerifyRequest(BaseModel):
 
 @router.post("/payment/create-order", tags=["Payment"])
 def create_order(request: OrderCreateRequest, db: Session = Depends(get_db)):
+    if not client:
+        return create_response(success=False, error="Razorpay client not initialized. Check API keys.")
+
     try:
         data = {
             "amount": request.amount * 100, # Convert to subunits
@@ -146,6 +156,10 @@ async def payment_webhook(request: Request, db: Session = Depends(get_db)):
         signature = request.headers.get('X-Razorpay-Signature')
         
         # Verify Webhook Signature
+        if not client:
+             print("Razorpay client not initialized")
+             return create_response(success=False, error="Razorpay client not initialized")
+
         client.utility.verify_webhook_signature(body.decode('utf-8'), signature, RAZORPAY_WEBHOOK_SECRET)
         
         event = json.loads(body)

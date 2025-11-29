@@ -9,8 +9,17 @@ load_dotenv()
 VONAGE_API_KEY = os.getenv("VONAGE_API_KEY")
 VONAGE_API_SECRET = os.getenv("VONAGE_API_SECRET")
 
-client = Vonage(Auth(api_key=VONAGE_API_KEY, api_secret=VONAGE_API_SECRET))
-verify = client.verify
+try:
+    if VONAGE_API_KEY and VONAGE_API_SECRET:
+        client = Vonage(Auth(api_key=VONAGE_API_KEY, api_secret=VONAGE_API_SECRET))
+        verify = client.verify
+    else:
+        client = None
+        verify = None
+except Exception as e:
+    print(f"Vonage Init Error: {e}")
+    client = None
+    verify = None
 
 def send_otp(number: str, brand: str = "ConsultingBot"):
     """
@@ -18,6 +27,9 @@ def send_otp(number: str, brand: str = "ConsultingBot"):
     """
     if not VONAGE_API_KEY or VONAGE_API_KEY == "your_vonage_api_key":
         return create_response(success=False, error="Vonage API credentials missing")
+
+    if not client or not verify:
+        return create_response(success=False, error="Vonage client not initialized. Check API keys.")
 
     try:
         req = VerifyRequest(brand=brand, workflow=[SmsChannel(to=number)])
@@ -42,6 +54,9 @@ def verify_otp(request_id: str, code: str):
     """
     if not VONAGE_API_KEY or VONAGE_API_KEY == "your_vonage_api_key":
         return create_response(success=False, error="Vonage API credentials missing")
+
+    if not client or not verify:
+        return create_response(success=False, error="Vonage client not initialized. Check API keys.")
 
     try:
         response = verify.check_code(request_id, code)

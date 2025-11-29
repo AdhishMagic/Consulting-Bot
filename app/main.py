@@ -83,8 +83,22 @@ def auth_init():
 @app.get("/auth/callback", tags=["Auth"])
 def auth_callback(request: Request, db: Session = Depends(get_db)):
     code = request.query_params.get('code')
+    if not code:
+        return JSONResponse(
+            status_code=400, 
+            content=create_response(success=False, error="Missing authentication code", details={"message": "Please initiate authentication via /auth/init"})
+        )
+        
     flow = auth.get_google_flow()
-    flow.fetch_token(code=code)
+    try:
+        flow.fetch_token(code=code)
+    except Exception as e:
+        logger.error(f"Failed to fetch token: {e}")
+        return JSONResponse(
+            status_code=400,
+            content=create_response(success=False, error="Authentication Failed", details={"message": str(e)})
+        )
+        
     creds = flow.credentials
     auth.save_credentials(db, creds)
     return {"message": "Authentication successful. You can close this window."}
