@@ -44,3 +44,16 @@ class OTP(Base):
     phone_number = Column(String)
     status = Column(String) # pending, verified, failed
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+class Payment(Base):
+    __tablename__ = "payments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    booking_id = Column(Integer, index=True)
+    user_id = Column(Integer, index=True)
+    order_id = Column(String, index=True)
+    payment_id = Column(String, index=True)
+    status = Column(String, default="created") # created, paid, failed
+    amount = Column(Integer)
+    currency = Column(String, default="INR")
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)

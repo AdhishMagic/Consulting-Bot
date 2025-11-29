@@ -11,3 +11,4 @@ python-dotenv
 vonage
 email-validator
 google-generativeai
+razorpay

@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Request, Depends
 from fastapi.responses import RedirectResponse
 from .database import engine, Base, get_db
-from . import models, bookings, auth, otp_client, gmail_client
+from . import models, bookings, auth, otp_client, gmail_client, payment
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
@@ -12,6 +12,7 @@ app = FastAPI(title="Consulting Bot API", version="1.0.0")
 
 # Include Routers
 app.include_router(bookings.router)
+app.include_router(payment.router)
 
 # Auth Endpoints
 @app.get("/auth/init", tags=["Auth"])
