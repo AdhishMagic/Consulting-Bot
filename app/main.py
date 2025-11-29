@@ -7,11 +7,16 @@ from . import models, bookings, auth, otp_client, gmail_client, payment
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from .utils import create_response
+from .config import settings
 import logging
+import time
 
-# Configure Logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# Configure Structured Logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger("consulting_bot")
 
 # Create tables
 Base.metadata.create_all(bind=engine)
@@ -23,9 +28,18 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # Allow all origins for SalesIQ
     allow_credentials=True,
-    allow_methods=["POST", "GET", "OPTIONS"],
-    allow_headers=["Content-Type", "Authorization"],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
+
+# Request Logging Middleware
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    start_time = time.time()
+    response = await call_next(request)
+    process_time = time.time() - start_time
+    logger.info(f"Path: {request.url.path} Method: {request.method} Status: {response.status_code} Time: {process_time:.4f}s")
+    return response
 
 # Global Exception Handlers
 @app.exception_handler(RequestValidationError)
@@ -85,10 +99,12 @@ class OTPVerifyRequest(BaseModel):
 
 @app.post("/otp/send", tags=["OTP"])
 def send_otp_endpoint(request: OTPSendRequest):
+    logger.info(f"Sending OTP to {request.phone_number}")
     return otp_client.send_otp(request.phone_number)
 
 @app.post("/otp/verify", tags=["OTP"])
 def verify_otp_endpoint(request: OTPVerifyRequest):
+    logger.info(f"Verifying OTP for {request.request_id}")
     return otp_client.verify_otp(request.request_id, request.code)
 
 # Email Endpoints
@@ -99,6 +115,7 @@ class EmailSendRequest(BaseModel):
 
 @app.post("/email/send-confirmation", tags=["Email"])
 def send_email_endpoint(request: EmailSendRequest, db: Session = Depends(get_db)):
+    logger.info(f"Sending email to {request.to}")
     return gmail_client.send_email(db, request.to, request.subject, request.body)
 
 # Chat Endpoint
@@ -108,6 +125,7 @@ class ChatRequest(BaseModel):
 @app.post("/chat", tags=["Chat"])
 def chat_endpoint(request: ChatRequest):
     from .gemini_client import chat_with_gemini
+    logger.info("Processing chat request")
     response = chat_with_gemini(request.message)
     return create_response(success=True, data={"response": response})
 
@@ -121,7 +139,8 @@ def health_check(db: Session = Depends(get_db)):
     Checks the health of the application and its dependencies.
     """
     status = {
-        "status": "ok",
+        "status": "running",
+        "deployment_mode": settings.DEPLOYMENT_MODE,
         "database": "unknown",
         "google_creds": "unknown",
         "vonage_api": "unknown",
@@ -138,16 +157,12 @@ def health_check(db: Session = Depends(get_db)):
 
     # Check Google Credentials
     import os
-    if os.path.exists("client_secret_1046460036418-md36vuhp52suaulkoc71n0geq87q036q.apps.googleusercontent.com.json"): # Check for specific file or generic logic
+    import glob
+    if glob.glob("client_secret*.json"):
          status["google_creds"] = "present"
     else:
-         # Fallback check for any client secret json
-         import glob
-         if glob.glob("client_secret*.json"):
-             status["google_creds"] = "present"
-         else:
-             status["google_creds"] = "missing"
-             status["status"] = "degraded"
+         status["google_creds"] = "missing"
+         status["status"] = "degraded"
 
     # Check Vonage
     if os.getenv("VONAGE_API_KEY") and os.getenv("VONAGE_API_SECRET"):

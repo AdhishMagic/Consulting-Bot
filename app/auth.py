@@ -16,14 +16,18 @@ SCOPES = [
     'openid'
 ]
 
+from .config import settings
+
+# ... (imports)
+
 def get_google_flow(redirect_uri=None):
     """
     Creates a Google OAuth Flow instance.
     """
     client_config = {
         "web": {
-            "client_id": os.getenv("GOOGLE_CLIENT_ID"),
-            "client_secret": os.getenv("GOOGLE_CLIENT_SECRET"),
+            "client_id": settings.GOOGLE_CLIENT_ID,
+            "client_secret": settings.GOOGLE_CLIENT_SECRET,
             "auth_uri": "https://accounts.google.com/o/oauth2/auth",
             "token_uri": "https://oauth2.googleapis.com/token",
         }
@@ -31,7 +35,7 @@ def get_google_flow(redirect_uri=None):
     flow = Flow.from_client_config(
         client_config,
         scopes=SCOPES,
-        redirect_uri=redirect_uri or os.getenv("GOOGLE_REDIRECT_URI")
+        redirect_uri=redirect_uri or settings.get_redirect_uri()
     )
     return flow
 

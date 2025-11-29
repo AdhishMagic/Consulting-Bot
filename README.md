@@ -219,18 +219,25 @@ Default DB: `sqlite:///./consulting_bot.db`
 ### ✔ Use Swagger UI
 [http://localhost:8000/docs](http://localhost:8000/docs)
 
-## 🚀 Deployment
+## 🚀 Deployment to Railway
 
-Recommended hosting:
-- Railway
-- Render
-- Google Cloud Run
-- Fly.io
-- Docker
+This project is optimized for [Railway](https://railway.app/).
+
+1.  **Push to GitHub**: Ensure your code is on GitHub.
+2.  **New Project on Railway**: Select "Deploy from GitHub repo".
+3.  **Add Variables**: Go to "Variables" tab and add:
+    - `DEPLOYMENT_MODE`: `PROD`
+    - `RAILWAY_DOMAIN`: Your Railway app domain (e.g., `web-production-1234.up.railway.app`)
+    - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, etc.
+    - `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`
+    - `VONAGE_API_KEY`, `VONAGE_API_SECRET`
+4.  **Google OAuth**: Update your Google Cloud Console "Authorized redirect URIs" to include:
+    - `https://<your-railway-domain>/auth/callback`
 
 **Production Command**
+The `Procfile` automatically handles the start command:
 ```bash
-uvicorn app.main:app --host 0.0.0.0 --port 8000
+web: uvicorn app.main:app --host 0.0.0.0 --port $PORT
 ```
 
 ## 🙌 Contributing
