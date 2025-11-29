@@ -92,7 +92,7 @@ def create_order(request: OrderCreateRequest, db: Session = Depends(get_db)):
             "order_id": order['id'],
             "payment_link": payment_link, 
             "amount": request.amount
-        })
+        }, message="Order created successfully")
 
     except Exception as e:
         return create_response(success=False, error=str(e))
@@ -134,7 +134,7 @@ def verify_payment(request: PaymentVerifyRequest, db: Session = Depends(get_db))
                 booking.status = "confirmed_paid"
                 db.commit()
 
-        return create_response(success=True, data={"message": "Payment verified successfully"})
+        return create_response(success=True, data={"payment_id": request.razorpay_payment_id}, message="Payment verified successfully")
 
     except Exception as e:
         return create_response(success=False, error=str(e))
@@ -171,10 +171,10 @@ async def payment_webhook(request: Request, db: Session = Depends(get_db)):
                 payment.status = "failed"
                 db.commit()
 
-        return {"status": "ok"}
+        return create_response(success=True, message="Webhook processed")
 
     except Exception as e:
         # Webhook should generally return 200 even on error to prevent retries if it's a logic error
         # But for signature failure, 400 is appropriate.
         print(f"Webhook Error: {e}")
-        return {"status": "error"}
+        return create_response(success=False, error="Webhook processing failed")

@@ -151,6 +151,15 @@ Go to:
 
 ## 🤖 Zoho SalesIQ Bot Integration
 
+### Compatibility Mode
+This backend is strictly compatible with Zoho SalesIQ's `invokeurl` function.
+- **Global CORS**: Enabled for all origins.
+- **Response Format**: Standardized JSON `{ "success": true, "data": {...}, "message": "..." }`.
+- **Error Handling**: Returns JSON errors even for 422/500 status codes.
+
+### Deluge Script Example
+See `salesiq_bot.ds` for a complete example of how to call these endpoints from Zoho SalesIQ.
+
 ### 1️⃣ Create Order via API Plug
 
 **URL**: `https://your-domain.com/payment/create-order`
@@ -174,7 +183,8 @@ Go to:
     "order_id": "order_ABC123",
     "payment_link": "https://rzp.io/i/example",
     "amount": 500
-  }
+  },
+  "message": "Order created successfully"
 }
 ```
 

@@ -45,7 +45,7 @@ def create_appointment(request: BookingCreateRequest, db: Session = Depends(get_
     )
     
     if not cal_response.get("success"):
-        return cal_response
+        return create_response(success=False, error=cal_response.get("error", "Calendar Error"))
 
     # Save to DB
     event_id = cal_response["data"]["event_id"]
@@ -60,7 +60,7 @@ def create_appointment(request: BookingCreateRequest, db: Session = Depends(get_
     db.commit()
     db.refresh(new_booking)
     
-    return create_response(success=True, data={"booking_id": new_booking.id, "event_id": event_id})
+    return create_response(success=True, data={"booking_id": new_booking.id, "event_id": event_id}, message="Appointment created successfully")
 
 @router.post("/appointment/list", tags=["Appointments"])
 def list_appointments(user_email: str, db: Session = Depends(get_db)):
@@ -74,7 +74,7 @@ def list_appointments(user_email: str, db: Session = Depends(get_db)):
             "end": b.end_time.isoformat(),
             "status": b.status
         })
-    return create_response(success=True, data=data)
+    return create_response(success=True, data={"appointments": data})
 
 @router.post("/appointment/update", tags=["Appointments"])
 def update_appointment(request: BookingUpdateRequest, db: Session = Depends(get_db)):
@@ -85,14 +85,14 @@ def update_appointment(request: BookingUpdateRequest, db: Session = Depends(get_
     # Update Google Calendar
     cal_response = update_event(db, booking.event_id, request.new_start_time, request.new_end_time)
     if not cal_response.get("success"):
-        return cal_response
+        return create_response(success=False, error=cal_response.get("error", "Calendar Update Error"))
     
     # Update DB
     booking.start_time = datetime.datetime.fromisoformat(request.new_start_time.replace('Z', '+00:00'))
     booking.end_time = datetime.datetime.fromisoformat(request.new_end_time.replace('Z', '+00:00'))
     db.commit()
     
-    return create_response(success=True, data={"message": "Booking updated"})
+    return create_response(success=True, data={"booking_id": booking.id}, message="Booking updated successfully")
 
 @router.post("/appointment/cancel", tags=["Appointments"])
 def cancel_appointment(request: BookingCancelRequest, db: Session = Depends(get_db)):
@@ -103,10 +103,10 @@ def cancel_appointment(request: BookingCancelRequest, db: Session = Depends(get_
     # Delete from Google Calendar
     cal_response = delete_event(db, booking.event_id)
     if not cal_response.get("success"):
-        return cal_response
+        return create_response(success=False, error=cal_response.get("error", "Calendar Delete Error"))
     
     # Update DB status
     booking.status = "cancelled"
     db.commit()
     
-    return create_response(success=True, data={"message": "Booking cancelled"})
+    return create_response(success=True, data={"booking_id": booking.id}, message="Booking cancelled successfully")

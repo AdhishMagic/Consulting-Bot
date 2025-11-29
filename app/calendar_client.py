@@ -63,7 +63,7 @@ def get_free_busy(db: Session, time_min: str, time_max: str):
             
             current = slot_end
 
-        return create_response(success=True, slots=slots)
+        return create_response(success=True, data={"slots": slots})
 
     except Exception as e:
         return create_response(success=False, error=str(e))
