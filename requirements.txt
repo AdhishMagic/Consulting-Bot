@@ -13,3 +13,4 @@ email-validator
 google-generativeai
 razorpay
 pytz
+python-multipart
