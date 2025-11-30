@@ -10,6 +10,7 @@ logger = logging.getLogger("consulting_bot.gemini")
 
 # Configure Gemini
 API_KEY = os.getenv("GEMINI_API_KEY")
+MODEL_OVERRIDE = os.getenv("GEMINI_MODEL")
 if API_KEY:
     try:
         genai.configure(api_key=API_KEY)
@@ -147,6 +148,15 @@ PREFERRED_MODELS = [
 def _select_model():
     if not API_KEY:
         return None
+    # If a model override is provided, try that first (both raw and prefixed)
+    if MODEL_OVERRIDE:
+        for name in (MODEL_OVERRIDE, MODEL_OVERRIDE if MODEL_OVERRIDE.startswith("models/") else f"models/{MODEL_OVERRIDE}"):
+            try:
+                mdl = genai.GenerativeModel(model_name=name, tools=tools_list)
+                logger.info(f"Selected Gemini model via override: {name}")
+                return mdl
+            except Exception as e:
+                logger.warning(f"Failed to init override model '{name}': {e}")
     # Prefer direct model names first to avoid API version mismatches
     for candidate in PREFERRED_MODELS:
         try:
@@ -204,5 +214,20 @@ def chat_with_gemini(message: str):
                 response = chat.send_message(message)
                 return getattr(response, "text", str(response))
             except Exception as e2:
+                # Last-chance: try a set of broad compatibility model names and generate_content
+                candidates = [
+                    "gemini-pro", "models/gemini-pro",
+                    "gemini-1.0-pro", "models/gemini-1.0-pro",
+                    "gemini-1.5-pro-002", "models/gemini-1.5-pro-002",
+                    "gemini-1.5-flash-002", "models/gemini-1.5-flash-002",
+                ]
+                for cand in candidates:
+                    try:
+                        mdl = genai.GenerativeModel(model_name=cand, tools=tools_list)
+                        resp = mdl.generate_content(message)
+                        return getattr(resp, "text", str(resp))
+                    except Exception as e3:
+                        logger.warning(f"Fallback model '{cand}' failed: {e3}")
+                        continue
                 return f"Error: {str(e2)}"
         return f"Error: {err_msg}"
