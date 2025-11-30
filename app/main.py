@@ -3,7 +3,7 @@ from fastapi.responses import RedirectResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from .database import engine, Base, get_db
-from . import models, bookings, auth, otp_client, gmail_client, payment
+from . import models, bookings, auth, otp_client, gmail_client, payment, voice
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from .utils import create_response
@@ -70,6 +70,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 # Include Routers
 app.include_router(bookings.router)
 app.include_router(payment.router)
+app.include_router(voice.router)
 
 # Auth Endpoints
 @app.get("/auth/init", tags=["Auth"])
@@ -244,3 +245,8 @@ def health_check(db: Session = Depends(get_db)):
         status["status"] = "degraded"
 
     return create_response(success=True, data=status)
+
+# Simple verification endpoint for frontend connectivity checks
+@app.get("/verify", tags=["General"])
+def verify():
+    return create_response(success=True, data={"message": "Backend reachable"})

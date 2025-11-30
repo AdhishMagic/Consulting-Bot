@@ -1,12 +1,22 @@
 import os
+import logging
+import datetime
 import google.generativeai as genai
-from google.generativeai.types import FunctionDeclaration, Tool
+from google.generativeai.types import FunctionDeclaration, Tool  # type: ignore
 from . import bookings, otp_client, gmail_client
 from .database import SessionLocal
-import datetime
+
+logger = logging.getLogger("consulting_bot.gemini")
 
 # Configure Gemini
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+API_KEY = os.getenv("GEMINI_API_KEY")
+if API_KEY:
+    try:
+        genai.configure(api_key=API_KEY)
+    except Exception as e:
+        logger.error(f"Failed to configure Gemini client: {e}")
+else:
+    logger.warning("GEMINI_API_KEY not set; Gemini calls will return error message.")
 
 # Define Tools
 def check_availability(time_min: str, time_max: str):
@@ -124,17 +134,64 @@ tools_list = [
     create_payment_link
 ]
 
-model = genai.GenerativeModel(
-    model_name='gemini-1.5-flash',
-    tools=tools_list
-)
+_model = None  # lazy init
+
+PREFERRED_MODELS = [
+    "gemini-1.5-flash-002",
+    "gemini-1.5-flash",
+    "gemini-1.5-pro-002",
+    "gemini-1.5-pro",
+    "gemini-pro",
+]
+
+def _select_model():
+    if not API_KEY:
+        return None
+    try:
+        available = list(genai.list_models())
+    except Exception as e:
+        logger.error(f"Unable to list Gemini models: {e}")
+        return None
+    # Build map name->model supporting generateContent
+    support = {m.name: m for m in available if getattr(m, "supported_generation_methods", None) and "generateContent" in m.supported_generation_methods}
+    for candidate in PREFERRED_MODELS:
+        # API returns names like 'models/gemini-1.5-flash'
+        full_name = candidate if candidate.startswith("models/") else f"models/{candidate}"
+        if full_name in support:
+            logger.info(f"Selected Gemini model: {full_name}")
+            return genai.GenerativeModel(model_name=full_name, tools=tools_list)
+    if support:
+        any_name = next(iter(support.keys()))
+        logger.warning(f"Preferred models not found. Falling back to {any_name}")
+        return genai.GenerativeModel(model_name=any_name, tools=tools_list)
+    logger.error("No suitable Gemini model with generateContent capability found.")
+    return None
 
 def chat_with_gemini(message: str):
+    """Send a message to Gemini with dynamic model selection and graceful fallbacks."""
+    if not API_KEY:
+        return "Error: Gemini API key missing"
+    global _model
+    if _model is None:
+        _model = _select_model()
+        if _model is None:
+            return "Error: No available Gemini model"
     try:
-        # Start a fresh chat session for each request to ensure statelessness and avoid cross-talk.
-        # In a production app with history, you would load history here.
-        chat = model.start_chat(enable_automatic_function_calling=True)
+        chat = _model.start_chat(enable_automatic_function_calling=True)
         response = chat.send_message(message)
-        return response.text
+        return getattr(response, "text", str(response))
     except Exception as e:
-        return f"Error: {str(e)}"
+        # On model not found errors, attempt one re-selection then retry once
+        err_msg = str(e)
+        if "not found" in err_msg or "404" in err_msg:
+            logger.warning(f"Model error '{err_msg}', re-selecting model...")
+            _model = _select_model()
+            if _model is None:
+                return f"Error: {err_msg} (and no fallback model available)"
+            try:
+                chat = _model.start_chat(enable_automatic_function_calling=True)
+                response = chat.send_message(message)
+                return getattr(response, "text", str(response))
+            except Exception as e2:
+                return f"Error: {str(e2)}"
+        return f"Error: {err_msg}"

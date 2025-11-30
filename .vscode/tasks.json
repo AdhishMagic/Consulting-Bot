@@ -1,0 +1,30 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Frontend Dev (Vite)",
+      "type": "shell",
+      "command": "npm run dev",
+      "options": { "cwd": "${workspaceFolder}/frontend" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Backend Dev (Uvicorn)",
+      "type": "shell",
+      "command": "uvicorn app.main:app --reload",
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Start Both",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-Command",
+        "Start-Job { Push-Location '${workspaceFolder}'; uvicorn app.main:app --reload }; Start-Job { Push-Location '${workspaceFolder}/frontend'; npm run dev }; Write-Host 'Started backend & frontend.'"
+      ],
+      "problemMatcher": []
+    }
+  ]
+}
