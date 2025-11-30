@@ -1,0 +1,76 @@
+
+// =================================================================================
+// Trigger Handler Script for Zoho SalesIQ / Cliq Bot
+// =================================================================================
+try
+{
+    // 1. Configuration
+    backend_url = "https://simp-consulting-bot-production.up.railway.app/trigger"; 
+    
+    info "Trigger Handler Started";
+
+    // 2. Set Trigger Name Manually
+    t_name = "salesiq_event"; 
+
+    // 3. Get User ID safely
+    u_id = "visitor";
+    try {
+        if(visitor != null) {
+            id = visitor.get("id");
+            if(id != null) {
+                u_id = id;
+            }
+        }
+    } catch (e) {}
+
+    // 4. Prepare Payload
+    payload = Map();
+    payload.put("trigger", t_name);
+    payload.put("user_id", u_id);
+    payload.put("data", Map()); 
+
+    info "Trigger Payload: " + payload;
+
+    // 5. Call Backend
+    response = invokeurl
+    [
+        url: backend_url
+        type: POST
+        content-type: "application/json"
+        parameters: payload.toString()
+    ];
+    
+    info "Trigger Response: " + response;
+
+    // 6. Process Response
+    success = response.get("success");
+    if (success == true) 
+    {
+        data_map = response.get("data");
+        if(data_map != null)
+        {
+            bot_reply = data_map.get("reply");
+            if(bot_reply != null) {
+                return {"text": bot_reply.toString()};
+            }
+            
+            msg = response.get("message");
+            if(msg != null) {
+                return {"text": msg.toString()};
+            }
+        }
+    }
+    
+    err = response.get("error");
+    if(err != null) {
+        return {"text": "Error: " + err};
+    }
+}
+catch (e)
+{
+    info "CRITICAL TRIGGER EXCEPTION: " + e;
+    return {"text": "Processing..."};
+}
+
+// 7. Fallback
+return {"text": "Processing..."};

@@ -45,8 +45,9 @@ async def log_requests(request: Request, call_next):
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     logger.error(f"Validation Error: {exc}")
+    # Return 200 OK even for validation errors so Deluge doesn't crash
     return JSONResponse(
-        status_code=422,
+        status_code=200,
         content=create_response(success=False, error="Validation Error", details={"errors": exc.errors()})
     )
 
@@ -54,7 +55,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 async def http_exception_handler(request: Request, exc: HTTPException):
     logger.error(f"HTTP Exception: {exc.detail}")
     return JSONResponse(
-        status_code=exc.status_code,
+        status_code=200,
         content=create_response(success=False, error=exc.detail)
     )
 
@@ -62,7 +63,7 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 async def global_exception_handler(request: Request, exc: Exception):
     logger.error(f"Unhandled Exception: {exc}")
     return JSONResponse(
-        status_code=500,
+        status_code=200,
         content=create_response(success=False, error="Internal Server Error", details={"message": str(exc)})
     )
 
@@ -85,7 +86,7 @@ def auth_callback(request: Request, db: Session = Depends(get_db)):
     code = request.query_params.get('code')
     if not code:
         return JSONResponse(
-            status_code=400, 
+            status_code=200, 
             content=create_response(success=False, error="Missing authentication code", details={"message": "Please initiate authentication via /auth/init"})
         )
         
@@ -95,7 +96,7 @@ def auth_callback(request: Request, db: Session = Depends(get_db)):
     except Exception as e:
         logger.error(f"Failed to fetch token: {e}")
         return JSONResponse(
-            status_code=400,
+            status_code=200,
             content=create_response(success=False, error="Authentication Failed", details={"message": str(e)})
         )
         
@@ -142,11 +143,12 @@ def chat_endpoint(request: ChatRequest):
     from .gemini_client import chat_with_gemini
     logger.info("Processing chat request")
     response = chat_with_gemini(request.message)
-    return create_response(success=True, data={"response": response})
+    logger.info(f"Gemini Response: {response} (Type: {type(response)})")
+    return create_response(success=True, data={"response": str(response)})
 
 class TriggerRequest(BaseModel):
-    trigger: str
-    user_id: str
+    trigger: str = "default"
+    user_id: str = "visitor"
     data: dict = {}
 
 @app.post("/trigger", tags=["Chat"])
@@ -159,13 +161,13 @@ def trigger_endpoint(request: TriggerRequest):
     prompt = f"System Event: {request.trigger}. User Data: {request.data}. Generate a welcome message or appropriate response."
     response = chat_with_gemini(prompt)
     
-    return create_response(success=True, data={"reply": response})
+    return create_response(success=True, data={"reply": str(response)})
 
 class ContextRequest(BaseModel):
-    context_id: str
-    user_id: str
-    question: str
-    answer: str
+    context_id: str = "default"
+    user_id: str = "visitor"
+    question: str = ""
+    answer: str = ""
 
 @app.post("/context", tags=["Chat"])
 def context_endpoint(request: ContextRequest):
@@ -176,7 +178,7 @@ def context_endpoint(request: ContextRequest):
     prompt = f"Context: {request.context_id}. Question: {request.question}. User Answer: {request.answer}. Continue the conversation."
     response = chat_with_gemini(prompt)
     
-    return create_response(success=True, data={"reply": response})
+    return create_response(success=True, data={"reply": str(response)})
 
     return create_response(success=True, data={"reply": response})
 

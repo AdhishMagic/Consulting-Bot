@@ -1,0 +1,78 @@
+
+// =================================================================================
+// Message Handler Script for Zoho SalesIQ / Cliq Bot
+// =================================================================================
+try 
+{
+    // 1. Configuration
+    backend_url = "https://simp-consulting-bot-production.up.railway.app/chat"; 
+    
+    info "Message Handler Started";
+
+    // 2. Get User Message
+    msg_text = "Hello";
+    try {
+        msg_text = message;
+    } catch (e) {}
+
+    // 3. Get User ID safely
+    u_id = "visitor";
+    try {
+        if(user != null) { 
+            val = user.get("id");
+            if(val != null) { u_id = val; }
+        }
+    } catch (e) {
+        try {
+            if(visitor != null) { 
+                val = visitor.get("id");
+                if(val != null) { u_id = val; }
+            }
+        } catch (e2) {}
+    }
+
+    // 4. Prepare Payload
+    payload = Map();
+    payload.put("message", msg_text);
+    payload.put("user_id", u_id);
+
+    info "Sending Payload: " + payload;
+
+    // 5. Call Backend
+    response = invokeurl
+    [
+        url: backend_url
+        type: POST
+        content-type: "application/json"
+        parameters: payload.toString()
+    ];
+    
+    info "Backend Response: " + response;
+
+    // 6. Process Response
+    if (response.get("success") == true) 
+    {
+        data_map = response.get("data");
+        if(data_map != null && data_map.containKey("response"))
+        {
+            bot_reply = data_map.get("response");
+            if(bot_reply != null) {
+                return {"text": bot_reply.toString()};
+            }
+        }
+    }
+    else
+    {
+        err_msg = response.get("error");
+        if(err_msg == null) { err_msg = "Unknown error"; }
+        return {"text": "Error: " + err_msg};
+    }
+}
+catch (e)
+{
+    info "CRITICAL EXCEPTION: " + e;
+    return {"text": "I'm having trouble connecting. Please try again later."};
+}
+
+// 7. Fallback (Should not be reached if catch works, but safe to have)
+return {"text": "I received your message but couldn't process it."};

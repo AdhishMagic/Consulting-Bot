@@ -1,0 +1,102 @@
+
+// =================================================================================
+// Context Handler Script for Zoho SalesIQ / Cliq Bot
+// =================================================================================
+try
+{
+    // 1. Configuration
+    backend_url = "https://simp-consulting-bot-production.up.railway.app/context"; 
+    
+    info "Context Handler Started";
+
+    // 2. Initialize Variables with Defaults
+    c_id = "default_context";
+    u_id = "visitor";
+    q_asked = "";
+    ans_given = "";
+
+    // 3. Get Inputs
+    try {
+        if(context_id != null) { c_id = context_id; }
+    } catch (e) {}
+
+    try {
+        if(user != null) { 
+            val = user.get("id");
+            if(val != null) { u_id = val; }
+        }
+    } catch (e) {
+        try {
+            if(visitor != null) { 
+                val = visitor.get("id");
+                if(val != null) { u_id = val; }
+            }
+        } catch (e2) {}
+    }
+
+    try {
+        if(question != null) { q_asked = question; }
+    } catch (e) {}
+
+    try {
+        if(answer != null) { ans_given = answer; }
+    } catch (e) {}
+
+
+    // 4. Prepare Payload
+    payload = Map();
+    payload.put("context_id", c_id);
+    payload.put("user_id", u_id);
+    payload.put("question", q_asked);
+    payload.put("answer", ans_given);
+
+    info "Context Payload: " + payload;
+
+    // 5. Call Backend
+    response = invokeurl
+    [
+        url: backend_url
+        type: POST
+        content-type: "application/json"
+        parameters: payload.toString()
+    ];
+    
+    info "Context Response: " + response;
+
+    // 6. Process Response
+    success = response.get("success");
+    if (success == true) 
+    {
+        data_map = response.get("data");
+        if(data_map != null)
+        {
+            bot_reply = data_map.get("reply");
+            if(bot_reply != null) {
+                return {"text": bot_reply.toString()};
+            }
+            
+            msg = response.get("message");
+            if(msg != null) {
+                return {"text": msg.toString()};
+            }
+            
+            next_context = data_map.get("context");
+            if(next_context != null) {
+                return {"context": next_context};
+            }
+        }
+    }
+    
+    err = response.get("error");
+    if(err != null) {
+        return {"text": "Error: " + err};
+    }
+}
+catch (e)
+{
+    info "CRITICAL CONTEXT EXCEPTION: " + e;
+    return {"text": "I couldn't process that response. Please try again."};
+}
+
+// 7. Fallback
+return {"text": "I couldn't process that response. Please try again."};
