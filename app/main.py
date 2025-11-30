@@ -135,6 +135,7 @@ def send_email_endpoint(request: EmailSendRequest, db: Session = Depends(get_db)
 # Chat Endpoint
 class ChatRequest(BaseModel):
     message: str
+    user_id: str = "visitor"
 
 @app.post("/chat", tags=["Chat"])
 def chat_endpoint(request: ChatRequest):

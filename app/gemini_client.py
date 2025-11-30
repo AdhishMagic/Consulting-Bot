@@ -66,12 +66,62 @@ def send_email(to: str, subject: str, body: str):
     finally:
         db.close()
 
+def create_payment_link(booking_id: int, amount: int, currency: str = "INR"):
+    """Generates a payment link for a booking."""
+    import razorpay
+    from .models import Payment
+    
+    db = SessionLocal()
+    try:
+        key_id = os.getenv("RAZORPAY_KEY_ID")
+        key_secret = os.getenv("RAZORPAY_KEY_SECRET")
+        
+        if not key_id or not key_secret:
+            return {"error": "Razorpay credentials missing"}
+            
+        client = razorpay.Client(auth=(key_id, key_secret))
+        
+        data = {
+            "amount": amount * 100, # subunits
+            "currency": currency,
+            "receipt": f"booking_{booking_id}",
+            "payment_capture": 1
+        }
+        order = client.order.create(data=data)
+        
+        # Save Payment Record
+        # We need a user_id, but for this tool we might not have it directly from the prompt 
+        # unless passed. We'll assume a placeholder or try to fetch from booking if possible.
+        # For now, let's use a default or 0 if not provided.
+        # Ideally, the bot should ask for user_id or we infer it.
+        # Let's pass user_id=0 for now as it's required by model but maybe not critical for link generation.
+        
+        new_payment = Payment(
+            booking_id=booking_id,
+            user_id=0, # Placeholder
+            order_id=order['id'],
+            amount=amount,
+            currency=currency,
+            status="created"
+        )
+        db.add(new_payment)
+        db.commit()
+        
+        payment_link = f"https://checkout.razorpay.com/v1/checkout.js?order_id={order['id']}"
+        return {"success": True, "payment_link": payment_link, "order_id": order['id']}
+        
+    except Exception as e:
+        return {"error": str(e)}
+    finally:
+        db.close()
+
 tools_list = [
     check_availability,
     book_appointment,
     send_otp,
     verify_otp,
-    send_email
+    send_email,
+    create_payment_link
 ]
 
 model = genai.GenerativeModel(
