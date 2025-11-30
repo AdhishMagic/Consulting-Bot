@@ -136,6 +136,7 @@ tools_list = [
 ]
 
 _model = None  # lazy init
+_model_name = None  # track current model name
 
 PREFERRED_MODELS = [
     "gemini-1.5-flash-002",
@@ -145,25 +146,31 @@ PREFERRED_MODELS = [
     "gemini-pro",
 ]
 
-def _select_model():
+def _select_model(exclude: set | None = None):
     if not API_KEY:
         return None
+    if exclude is None:
+        exclude = set()
     # If a model override is provided, try that first (both raw and prefixed)
     if MODEL_OVERRIDE:
         for name in (MODEL_OVERRIDE, MODEL_OVERRIDE if MODEL_OVERRIDE.startswith("models/") else f"models/{MODEL_OVERRIDE}"):
+            if name in exclude:
+                continue
             try:
                 mdl = genai.GenerativeModel(model_name=name, tools=tools_list)
                 logger.info(f"Selected Gemini model via override: {name}")
-                return mdl
+                return name, mdl
             except Exception as e:
                 logger.warning(f"Failed to init override model '{name}': {e}")
     # Prefer direct model names first to avoid API version mismatches
     for candidate in PREFERRED_MODELS:
         try:
             model_name = candidate if candidate.startswith("models/") else f"models/{candidate}"
+            if model_name in exclude:
+                continue
             mdl = genai.GenerativeModel(model_name=model_name, tools=tools_list)
             logger.info(f"Selected Gemini model: {model_name}")
-            return mdl
+            return model_name, mdl
         except Exception as e:
             logger.warning(f"Failed to init model '{candidate}': {e}")
             continue
@@ -174,7 +181,13 @@ def _select_model():
         if support:
             any_name = next(iter(support.keys()))
             logger.warning(f"Preferred models unavailable. Falling back to {any_name}")
-            return genai.GenerativeModel(model_name=any_name, tools=tools_list)
+            if any_name in exclude:
+                # pick another if possible
+                for n in support.keys():
+                    if n not in exclude:
+                        any_name = n
+                        break
+            return any_name, genai.GenerativeModel(model_name=any_name, tools=tools_list)
     except Exception as e:
         logger.error(f"Unable to list Gemini models: {e}")
     logger.error("No suitable Gemini model could be initialized.")
@@ -192,11 +205,12 @@ def chat_with_gemini(message: str):
             "I can still respond: You said: '" + safe_msg + "'. "
             "To enable full AI replies, set GEMINI_API_KEY in the environment."
         )
-    global _model
+    global _model, _model_name
     if _model is None:
-        _model = _select_model()
-        if _model is None:
+        sel = _select_model()
+        if not sel:
             return "Error: No available Gemini model"
+        _model_name, _model = sel
     try:
         chat = _model.start_chat(enable_automatic_function_calling=True)
         response = chat.send_message(message)
@@ -205,10 +219,11 @@ def chat_with_gemini(message: str):
         # On model not found errors, attempt one re-selection then retry once
         err_msg = str(e)
         if "not found" in err_msg or "404" in err_msg:
-            logger.warning(f"Model error '{err_msg}', re-selecting model...")
-            _model = _select_model()
-            if _model is None:
+            logger.warning(f"Model error '{err_msg}', re-selecting model excluding {_model_name}...")
+            sel2 = _select_model(exclude={_model_name} if _model_name else set())
+            if not sel2:
                 return f"Error: {err_msg} (and no fallback model available)"
+            _model_name, _model = sel2
             try:
                 chat = _model.start_chat(enable_automatic_function_calling=True)
                 response = chat.send_message(message)
