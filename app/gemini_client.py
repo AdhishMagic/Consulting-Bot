@@ -138,8 +138,8 @@ _model = None  # lazy init
 
 PREFERRED_MODELS = [
     "gemini-1.5-flash-002",
-    "gemini-1.5-flash",
     "gemini-1.5-pro-002",
+    "gemini-1.5-flash",
     "gemini-1.5-pro",
     "gemini-pro",
 ]
@@ -147,30 +147,41 @@ PREFERRED_MODELS = [
 def _select_model():
     if not API_KEY:
         return None
+    # Prefer direct model names first to avoid API version mismatches
+    for candidate in PREFERRED_MODELS:
+        try:
+            model_name = candidate if candidate.startswith("models/") else f"models/{candidate}"
+            mdl = genai.GenerativeModel(model_name=model_name, tools=tools_list)
+            logger.info(f"Selected Gemini model: {model_name}")
+            return mdl
+        except Exception as e:
+            logger.warning(f"Failed to init model '{candidate}': {e}")
+            continue
+    # As a last resort, attempt listing and pick any that supports generateContent
     try:
         available = list(genai.list_models())
+        support = {m.name: m for m in available if getattr(m, "supported_generation_methods", None) and "generateContent" in m.supported_generation_methods}
+        if support:
+            any_name = next(iter(support.keys()))
+            logger.warning(f"Preferred models unavailable. Falling back to {any_name}")
+            return genai.GenerativeModel(model_name=any_name, tools=tools_list)
     except Exception as e:
         logger.error(f"Unable to list Gemini models: {e}")
-        return None
-    # Build map name->model supporting generateContent
-    support = {m.name: m for m in available if getattr(m, "supported_generation_methods", None) and "generateContent" in m.supported_generation_methods}
-    for candidate in PREFERRED_MODELS:
-        # API returns names like 'models/gemini-1.5-flash'
-        full_name = candidate if candidate.startswith("models/") else f"models/{candidate}"
-        if full_name in support:
-            logger.info(f"Selected Gemini model: {full_name}")
-            return genai.GenerativeModel(model_name=full_name, tools=tools_list)
-    if support:
-        any_name = next(iter(support.keys()))
-        logger.warning(f"Preferred models not found. Falling back to {any_name}")
-        return genai.GenerativeModel(model_name=any_name, tools=tools_list)
-    logger.error("No suitable Gemini model with generateContent capability found.")
+    logger.error("No suitable Gemini model could be initialized.")
     return None
 
 def chat_with_gemini(message: str):
     """Send a message to Gemini with dynamic model selection and graceful fallbacks."""
     if not API_KEY:
-        return "Error: Gemini API key missing"
+        # Friendly fallback response when API key is missing
+        safe_msg = (message or "").strip()
+        if not safe_msg:
+            safe_msg = "your message"
+        return (
+            "Hi! I'm running in demo mode right now (no Gemini API key configured). "
+            "I can still respond: You said: '" + safe_msg + "'. "
+            "To enable full AI replies, set GEMINI_API_KEY in the environment."
+        )
     global _model
     if _model is None:
         _model = _select_model()
