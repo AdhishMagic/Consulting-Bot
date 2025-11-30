@@ -1,0 +1,56 @@
+
+// =================================================================================
+// Message Handler Script for Zoho SalesIQ / Cliq Bot
+// =================================================================================
+
+// 1. Configuration
+backend_url = "https://simp-consulting-bot-production.up.railway.app/chat"; 
+
+// 2. Get User Message
+// We use a try-catch block to safely get the message variable
+msg_text = "Hello";
+try {
+    msg_text = message;
+} catch (e) {
+    // If 'message' is undefined, we stick to "Hello"
+}
+
+// 3. Prepare Payload
+payload = Map();
+payload.put("message", msg_text);
+payload.put("user_id", "visitor");
+
+// 4. Call Backend
+try 
+{
+    response = invokeurl
+    [
+        url: backend_url
+        type: POST
+        content-type: "application/json"
+        parameters: payload.toString()
+    ];
+
+    // 5. Process Response
+    // We assume response is a Map (standard for JSON responses in Deluge)
+    
+    // Check for success
+    if (response.get("success") == true) 
+    {
+        // Navigate: response -> data -> response
+        bot_reply = response.get("data").get("response");
+        return {"text": bot_reply};
+    }
+    else
+    {
+        // Handle API errors
+        err_msg = response.get("error");
+        if(err_msg == null) { err_msg = "Unknown error"; }
+        return {"text": "Error: " + err_msg};
+    }
+}
+catch (e)
+{
+    // Handle connection/script errors
+    return {"text": "I'm having trouble connecting. Please try again later."};
+}

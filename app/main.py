@@ -143,6 +143,54 @@ def chat_endpoint(request: ChatRequest):
     response = chat_with_gemini(request.message)
     return create_response(success=True, data={"response": response})
 
+class TriggerRequest(BaseModel):
+    trigger: str
+    user_id: str
+    data: dict = {}
+
+@app.post("/trigger", tags=["Chat"])
+def trigger_endpoint(request: TriggerRequest):
+    logger.info(f"Processing trigger: {request.trigger} for user {request.user_id}")
+    # Logic to handle different triggers can go here
+    # For now, we return a generic response or forward to Gemini
+    from .gemini_client import chat_with_gemini
+    
+    prompt = f"System Event: {request.trigger}. User Data: {request.data}. Generate a welcome message or appropriate response."
+    response = chat_with_gemini(prompt)
+    
+    return create_response(success=True, data={"reply": response})
+
+class ContextRequest(BaseModel):
+    context_id: str
+    user_id: str
+    question: str
+    answer: str
+
+@app.post("/context", tags=["Chat"])
+def context_endpoint(request: ContextRequest):
+    logger.info(f"Processing context: {request.context_id} for user {request.user_id}")
+    # Logic to handle context updates (e.g., collecting user info)
+    from .gemini_client import chat_with_gemini
+    
+    prompt = f"Context: {request.context_id}. Question: {request.question}. User Answer: {request.answer}. Continue the conversation."
+    response = chat_with_gemini(prompt)
+    
+    return create_response(success=True, data={"reply": response})
+
+    return create_response(success=True, data={"reply": response})
+
+class FailureRequest(BaseModel):
+    user_id: str
+    error: str
+    context: str = ""
+
+@app.post("/failure", tags=["Chat"])
+def failure_endpoint(request: FailureRequest):
+    logger.error(f"Bot Failure for user {request.user_id}: {request.error} | Context: {request.context}")
+    
+    # We can return a specific fallback message or just a generic one
+    return create_response(success=True, data={"reply": "I encountered an issue processing your request. A support agent has been notified."})
+
 @app.get("/", tags=["General"])
 def root():
     return {"message": "Consulting Bot Backend is running"}

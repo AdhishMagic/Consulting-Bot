@@ -1,0 +1,72 @@
+
+// =================================================================================
+// Failure Handler Script for Zoho SalesIQ / Cliq Bot
+// =================================================================================
+
+// 1. Configuration
+backend_url = "https://simp-consulting-bot-production.up.railway.app/failure"; 
+
+// 2. Initialize Variables
+u_id = "visitor";
+err_msg = "Unknown Error";
+ctx = "";
+
+// 3. Safely Extract Inputs
+// We comment out direct access to avoid compile errors if variables don't exist.
+// Uncomment the ones available in your Failure Handler context.
+
+/*
+try {
+    if(user != null) { 
+        val = user.get("id");
+        if(val != null) { u_id = val; }
+    }
+} catch (e) {}
+
+try {
+    if(cause != null) { err_msg = cause; }
+} catch (e) {}
+
+try {
+    if(context != null) { ctx = context; }
+} catch (e) {}
+*/
+
+// 4. Prepare Payload
+payload = Map();
+payload.put("user_id", u_id);
+payload.put("error", err_msg);
+payload.put("context", ctx);
+
+// 5. Call Backend
+try 
+{
+    response = invokeurl
+    [
+        url: backend_url
+        type: POST
+        content-type: "application/json"
+        parameters: payload.toString()
+    ];
+
+    // 6. Process Response
+    success = response.get("success");
+    if (success == true) 
+    {
+        data_map = response.get("data");
+        if(data_map != null)
+        {
+            bot_reply = data_map.get("reply");
+            if(bot_reply != null) {
+                return {"text": bot_reply};
+            }
+        }
+    }
+}
+catch (e)
+{
+    // info "Backend Error: " + e;
+}
+
+// 7. Fallback (if backend call fails)
+return {"text": "I'm sorry, something went wrong. Please try again later."};
