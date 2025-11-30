@@ -1,4 +1,24 @@
+# Node
+node_modules/
+frontend/node_modules/
+package-lock.json
+
+# Python
 __pycache__/
+*.pyc
+.venv/
+
+# Env and secrets
+.env
+frontend/.env
+
+# Build/Dist
+dist/
+frontend/dist/
+
+# Misc
+uploads/
+.DS_Store__pycache__/
 *.pyc
 .env
 .venv/
