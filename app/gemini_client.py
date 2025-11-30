@@ -195,15 +195,30 @@ def _select_model(exclude: set | None = None):
 
 def chat_with_gemini(message: str):
     """Send a message to Gemini with dynamic model selection and graceful fallbacks."""
-    if not API_KEY:
-        # Friendly fallback response when API key is missing
-        safe_msg = (message or "").strip()
-        if not safe_msg:
-            safe_msg = "your message"
+    # Lazy refresh if key not present (e.g. .env added after initial import)
+    def _ensure_api_key():
+        global API_KEY
+        if not API_KEY:
+            try:
+                from dotenv import load_dotenv
+                load_dotenv()
+            except Exception:
+                pass
+            API_KEY = os.getenv("GEMINI_API_KEY")
+            if API_KEY:
+                try:
+                    genai.configure(api_key=API_KEY)
+                    logger.info("Gemini API key loaded at runtime.")
+                except Exception as e:
+                    logger.error(f"Failed to configure Gemini after dynamic load: {e}")
+        return API_KEY
+
+    if not _ensure_api_key():
+        safe_msg = (message or "").strip() or "your message"
         return (
-            "Hi! I'm running in demo mode right now (no Gemini API key configured). "
-            "I can still respond: You said: '" + safe_msg + "'. "
-            "To enable full AI replies, set GEMINI_API_KEY in the environment."
+            "Hi! I'm running in demo mode (Gemini key not detected). "
+            "You said: '" + safe_msg + "'. "
+            "Set GEMINI_API_KEY in environment and restart to enable full AI."
         )
     global _model, _model_name
     if _model is None:

@@ -10,5 +10,16 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+    
+    <!-- Zoho SalesIQ Widget -->
+    <script>
+      window.$zoho = window.$zoho || {};
+      $zoho.salesiq = $zoho.salesiq || { ready: function () {} };
+    </script>
+    <script
+      id="zsiqscript"
+      src="https://salesiq.zohopublic.in/widget?wc=siq528ad1e2518aa47202e84f9e612a9bc9a725d76482525863d3b433c2fc820c01"
+      defer
+    ></script>
   </body>
 </html>

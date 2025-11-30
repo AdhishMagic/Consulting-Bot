@@ -10,6 +10,7 @@ from .utils import create_response
 from .config import settings
 import logging
 import time
+import os
 
 # Configure Structured Logging
 logging.basicConfig(
@@ -250,3 +251,19 @@ def health_check(db: Session = Depends(get_db)):
 @app.get("/verify", tags=["General"])
 def verify():
     return create_response(success=True, data={"message": "Backend reachable"})
+
+# Runtime environment check for Gemini configuration and selection
+@app.get("/env-check", tags=["General"])
+def env_check():
+    from . import gemini_client as gc
+    info = {
+        "gemini_api_key_present": bool(os.getenv("GEMINI_API_KEY")),
+        "gemini_model_override": os.getenv("GEMINI_MODEL") or None,
+        "selected_model": getattr(gc, "_model_name", None),
+    }
+    try:
+        import google.generativeai as g
+        info["google_generativeai_version"] = getattr(g, "__version__", "unknown")
+    except Exception:
+        info["google_generativeai_version"] = "unknown"
+    return create_response(success=True, data=info)

@@ -1,31 +1,44 @@
-import React from 'react'
+import React, { useState } from 'react'
 import './styles.css'
+import Chat from './Chat'
+import VoiceRecorder from './VoiceRecorder'
+import { Toasts } from './Toasts'
 
 export default function App() {
+  const [toasts, setToasts] = useState([])
+  function pushToast(msg, type='info'){ setToasts(t => [...t, { id: Date.now()+Math.random(), msg, type }]) }
+  function removeToast(id){ setToasts(t => t.filter(x => x.id !== id)) }
+
   return (
     <div className="single-dashboard">
-      <h1>Consulting Bot Dashboard</h1>
-      <p>
-        This simple dashboard describes what the bot backend does.
-        The backend is a FastAPI service providing endpoints and integrations
-        to power consulting workflows: bookings, calendars, payments, email,
-        OTP verification, AI assistance, and voice features.
-      </p>
-      <ul className="bullet-points">
-        <li><strong>Authentication:</strong> User sessions and OTP via `auth.py` and `otp_client.py`.</li>
-        <li><strong>Bookings:</strong> Create/manage appointments via `bookings.py` and `calendar_client.py`.</li>
-        <li><strong>Calendar:</strong> Schedule, update, cancel events with external providers.</li>
-        <li><strong>Payments:</strong> Handle payment intents and confirmations in `payment.py`.</li>
-        <li><strong>Email:</strong> Send/read confirmations and notifications via `gmail_client.py`.</li>
-        <li><strong>AI/Gemini:</strong> Use `gemini_client.py` for AI-driven responses.</li>
-        <li><strong>Database:</strong> Persist records via `database.py` and `models.py`.</li>
-        <li><strong>Utilities:</strong> Common helpers in `utils.py` across services.</li>
-        <li><strong>API Entry:</strong> FastAPI app in `app/main.py` exposes HTTP endpoints.</li>
-      </ul>
-      <p className="note">
-        Frontend reduced to a single page for clarity. Use the tasks
-        to run: Backend (Uvicorn) and Frontend (Vite).
-      </p>
+      <h1>Consulting Bot</h1>
+      <p className="muted" style={{marginBottom:24}}>Conversational AI assistant for scheduling, payments, and support. Integrated with Gemini (fallback demo mode if API key absent), calendar, OTP, email and voice.</p>
+      <div className="app-shell">
+        <div className="panel" style={{minHeight:560}}>
+          <div className="panel-header">
+            <h2>Chat Assistant</h2>
+          </div>
+          <Chat pushToast={pushToast} />
+        </div>
+        <div style={{display:'flex', flexDirection:'column', gap:24}}>
+          <div className="panel">
+            <VoiceRecorder />
+          </div>
+          <div className="panel">
+            <h2>System Overview</h2>
+            <ul style={{paddingLeft:18, margin:0, fontSize:13, lineHeight:1.6}}>
+              <li><strong>Bookings:</strong> Calendar + DB linked events</li>
+              <li><strong>Payments:</strong> Razorpay link generation</li>
+              <li><strong>Email:</strong> Gmail API confirmations</li>
+              <li><strong>OTP:</strong> Vonage verification flow</li>
+              <li><strong>AI:</strong> Gemini with tool calls (when enabled)</li>
+              <li><strong>Voice:</strong> Upload + live transcript UI</li>
+            </ul>
+            <p className="small muted" style={{marginTop:12}}>Use the chat to ask about availability, create bookings, or get generic assistance.</p>
+          </div>
+        </div>
+      </div>
+      <Toasts items={toasts} remove={removeToast} />
     </div>
   )
 }
