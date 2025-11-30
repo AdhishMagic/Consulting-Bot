@@ -1,58 +1,51 @@
+backend_url = "https://simp-consulting-bot-production.up.railway.app/context"; 
+c_id = "default_context";
+u_id = "visitor";
+q_asked = "";
+ans_given = "";
 
-// =================================================================================
-// Context Handler Script for Zoho SalesIQ / Cliq Bot
-// =================================================================================
-try
-{
-    // 1. Configuration
-    backend_url = "https://simp-consulting-bot-production.up.railway.app/context"; 
-    
-    info "Context Handler Started";
+// 1. Get Context ID Safely
+try {
+    if(context_id != null) { c_id = context_id; }
+} catch (e) {}
 
-    // 2. Initialize Variables with Defaults
-    c_id = "default_context";
-    u_id = "visitor";
-    q_asked = "";
-    ans_given = "";
-
-    // 3. Get Inputs
-    try {
-        if(context_id != null) { c_id = context_id; }
-    } catch (e) {}
-
+// 2. Get Visitor/User ID Safely
+try {
+    if(visitor != null) { 
+        val = visitor.get("id");
+        if(val != null) { u_id = val; }
+    }
+} catch (e) {
+    // Fallback to user if visitor is not defined
     try {
         if(user != null) { 
             val = user.get("id");
             if(val != null) { u_id = val; }
         }
-    } catch (e) {
-        try {
-            if(visitor != null) { 
-                val = visitor.get("id");
-                if(val != null) { u_id = val; }
-            }
-        } catch (e2) {}
-    }
+    } catch (e2) {}
+}
 
-    try {
-        if(question != null) { q_asked = question; }
-    } catch (e) {}
+// 3. Get Question and Answer Safely
+try {
+    if(question != null) { q_asked = question; }
+} catch (e) {}
 
-    try {
-        if(answer != null) { ans_given = answer; }
-    } catch (e) {}
+try {
+    if(answer != null) { ans_given = answer; }
+} catch (e) {}
 
+// 4. Prepare Payload
+payload = Map();
+payload.put("context_id", c_id);
+payload.put("user_id", u_id);
+payload.put("question", q_asked);
+payload.put("answer", ans_given);
 
-    // 4. Prepare Payload
-    payload = Map();
-    payload.put("context_id", c_id);
-    payload.put("user_id", u_id);
-    payload.put("question", q_asked);
-    payload.put("answer", ans_given);
+info "Context Payload: " + payload;
 
-    info "Context Payload: " + payload;
-
-    // 5. Call Backend
+// 5. Call Backend
+try
+{
     response = invokeurl
     [
         url: backend_url

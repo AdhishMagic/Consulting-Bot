@@ -1,37 +1,39 @@
+backend_url = "https://simp-consulting-bot-production.up.railway.app/trigger"; 
+t_name = "salesiq_event"; 
+u_id = "visitor";
 
-// =================================================================================
-// Trigger Handler Script for Zoho SalesIQ / Cliq Bot
-// =================================================================================
+// 1. Get Trigger Name Safely
+try {
+    if(trigger_name != null) { t_name = trigger_name; }
+} catch (e) {}
+
+// 2. Get Visitor/User ID Safely
+try {
+    if(visitor != null) {
+        id = visitor.get("id");
+        if(id != null) { u_id = id; }
+    }
+} catch (e) {
+    // Fallback to user if visitor is not defined
+    try {
+        if(user != null) {
+            id = user.get("id");
+            if(id != null) { u_id = id; }
+        }
+    } catch (e2) {}
+}
+
+// 3. Prepare Payload
+payload = Map();
+payload.put("trigger", t_name);
+payload.put("user_id", u_id);
+payload.put("data", Map()); 
+
+info "Trigger Payload: " + payload;
+
+// 4. Call Backend
 try
 {
-    // 1. Configuration
-    backend_url = "https://simp-consulting-bot-production.up.railway.app/trigger"; 
-    
-    info "Trigger Handler Started";
-
-    // 2. Set Trigger Name Manually
-    t_name = "salesiq_event"; 
-
-    // 3. Get User ID safely
-    u_id = "visitor";
-    try {
-        if(visitor != null) {
-            id = visitor.get("id");
-            if(id != null) {
-                u_id = id;
-            }
-        }
-    } catch (e) {}
-
-    // 4. Prepare Payload
-    payload = Map();
-    payload.put("trigger", t_name);
-    payload.put("user_id", u_id);
-    payload.put("data", Map()); 
-
-    info "Trigger Payload: " + payload;
-
-    // 5. Call Backend
     response = invokeurl
     [
         url: backend_url
@@ -42,7 +44,7 @@ try
     
     info "Trigger Response: " + response;
 
-    // 6. Process Response
+    // 5. Process Response
     success = response.get("success");
     if (success == true) 
     {
@@ -72,5 +74,5 @@ catch (e)
     return {"text": "Processing..."};
 }
 
-// 7. Fallback
+// 6. Fallback
 return {"text": "Processing..."};

@@ -1,72 +1,57 @@
-
-// =================================================================================
-// Failure Handler Script for Zoho SalesIQ / Cliq Bot
-// =================================================================================
-
-// 1. Configuration
-backend_url = "https://simp-consulting-bot-production.up.railway.app/failure"; 
-
-// 2. Initialize Variables
+backend_url = "https://simp-consulting-bot-production.up.railway.app/failure";
 u_id = "visitor";
 err_msg = "Unknown Error";
 ctx = "";
 
-// 3. Safely Extract Inputs
-// We comment out direct access to avoid compile errors if variables don't exist.
-// Uncomment the ones available in your Failure Handler context.
-
-/*
+// Try to get visitor ID safely
 try {
-    if(user != null) { 
-        val = user.get("id");
+    if(visitor != null) { 
+        val = visitor.get("id");
         if(val != null) { u_id = val; }
     }
-} catch (e) {}
+} catch (e) {
+    // Visitor variable not found, sticking with default "visitor"
+}
 
+// Try to get error cause safely
 try {
     if(cause != null) { err_msg = cause; }
 } catch (e) {}
 
-try {
-    if(context != null) { ctx = context; }
-} catch (e) {}
-*/
+// Context variable is not available in Failure Handler, skipping it.
+// try {
+//     if(context != null) { ctx = context.toString(); }
+// } catch (e) {}
 
-// 4. Prepare Payload
 payload = Map();
-payload.put("user_id", u_id);
-payload.put("error", err_msg);
-payload.put("context", ctx);
+payload.put("user_id",u_id);
+payload.put("error",err_msg);
+payload.put("context",ctx);
 
-// 5. Call Backend
 try 
 {
-    response = invokeurl
-    [
-        url: backend_url
-        type: POST
-        content-type: "application/json"
-        parameters: payload.toString()
-    ];
-
-    // 6. Process Response
-    success = response.get("success");
-    if (success == true) 
-    {
-        data_map = response.get("data");
-        if(data_map != null)
-        {
-            bot_reply = data_map.get("reply");
-            if(bot_reply != null) {
-                return {"text": bot_reply};
-            }
-        }
-    }
+	response = invokeurl
+	[
+		url :backend_url
+		type :POST
+		parameters:payload.toString()
+		content-type:"application/json"
+	];
+	success = response.get("success");
+	if(success == true)
+	{
+		data_map = response.get("data");
+		if(data_map != null)
+		{
+			bot_reply = data_map.get("reply");
+			if(bot_reply != null)
+			{
+				return {"text":bot_reply};
+			}
+		}
+	}
 }
 catch (e)
 {
-    // info "Backend Error: " + e;
 }
-
-// 7. Fallback (if backend call fails)
-return {"text": "I'm sorry, something went wrong. Please try again later."};
+return {"text":"I'm sorry, something went wrong. Please try again later."};
